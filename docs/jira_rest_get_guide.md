@@ -474,6 +474,128 @@ MCP server tự động đính kèm Jira credentials — Point Poker không cầ
 
 ---
 
+## §7.3 — Story Points Custom Field
+
+> **Deliverable §7.3**: Confirm the Story Points custom-field id on Sava Meta's Jira.
+
+**Sava Meta Jira Server dùng `customfield_10031`** cho Story Points — **không phải** `customfield_10016`.
+
+| Field | Giá trị trên Sava Meta |
+|-------|------------------------|
+| `customfield_10031` | Story Points thực tế (ví dụ: `8.0`, `13.0`, `0.0`) |
+| `customfield_10016` | **Luôn `null`** — không dùng |
+
+Ví dụ thực tế từ sprint issues (LLA Sprint 19):
+
+```json
+{
+  "key": "LLA-882",
+  "fields": {
+    "summary": "Onboarding for new user - đi từ web",
+    "customfield_10031": 8.0,
+    "customfield_10016": null
+  }
+}
+```
+
+Point Poker phải đọc `customfield_10031`, không phải `customfield_10016`.
+
+> **Note:** `customfield_10016` là field Story Points tiêu chuẩn trên **Jira Cloud** (Atlassian-hosted). Sava Meta dùng **Jira Server** (self-hosted) với field id khác.
+
+---
+
+## §7.2 — Sample Payloads for Point Poker
+
+> **Deliverable §7.2**: Working sample payload — 1 real project, 1 real board, 1 real sprint, 1 real sprint's issues — để Point Poker verify field shapes.
+
+### Project
+
+```json
+{
+  "id": "10908",
+  "key": "LLA",
+  "name": "LumiAI",
+  "projectTypeKey": "software",
+  "archived": false
+}
+```
+
+### Board
+
+```json
+{
+  "id": 91,
+  "name": "LLA Board",
+  "type": "scrum"
+}
+```
+
+### Sprint
+
+```json
+{
+  "id": 220,
+  "name": "LLA Sprint 19",
+  "state": "active",
+  "startDate": "2026-04-22T16:18:00.000+07:00",
+  "endDate": "2026-05-06T16:18:00.000+07:00",
+  "completeDate": null,
+  "activatedDate": "2026-04-22T16:18:43.753+07:00",
+  "originBoardId": 91,
+  "goal": ""
+}
+```
+
+### Sprint Issues (excerpt — 3 of 42)
+
+```json
+{
+  "startAt": 0,
+  "maxResults": 10,
+  "total": 42,
+  "issues": [
+    {
+      "id": "23010",
+      "key": "LLA-882",
+      "fields": {
+        "summary": "Onboarding for new user - đi từ web",
+        "issuetype": { "name": "Task", "subtask": false },
+        "status": { "name": "In Dev", "statusCategory": { "key": "indeterminate" } },
+        "assignee": { "key": "JIRAUSER11234", "displayName": "Khoi Tran Trong", "emailAddress": "khoitt@savameta.com" },
+        "customfield_10031": 8.0,
+        "customfield_10016": null
+      }
+    },
+    {
+      "id": "23022",
+      "key": "LLA-889",
+      "fields": {
+        "summary": "[DC] Create Department",
+        "issuetype": { "name": "Story", "subtask": false },
+        "status": { "name": "Ready For Dev", "statusCategory": { "key": "new" } },
+        "assignee": { "key": "JIRAUSER11229", "displayName": "An Dinh Tien", "emailAddress": "andt@savameta.com" },
+        "customfield_10031": 0.0,
+        "customfield_10016": null
+      }
+    },
+    {
+      "id": "23006",
+      "key": "LLA-878",
+      "fields": {
+        "summary": "[DDM] Set-up Roles & Permissions",
+        "issuetype": { "name": "Story", "subtask": false },
+        "status": { "name": "Planning", "statusCategory": { "key": "new" } },
+        "assignee": { "key": "JIRAUSER11231", "displayName": "Trong Tran Binh", "emailAddress": "trongtb@savameta.com" },
+        "customfield_10031": 13.0,
+        "customfield_10016": null
+      }
+    }
+  ]
+}
+```
+
+---
+
 ## Notes for Point Poker Dev
 
 - Để lấy `accountId` của một user: gọi `/rest/api/2/user/search?username=<email>`, đọc field `key`
@@ -482,3 +604,4 @@ MCP server tự động đính kèm Jira credentials — Point Poker không cầ
 - Mọi request đều là GET, không có quyền tạo/sửa/xóa
 - Để lấy sprint đang active: gọi `/rest/agile/1.0/board/{boardId}/sprint`, lọc `state == "active"`
 - **Story Points: dùng `customfield_10031`** — field `customfield_10016` luôn null trên Sava Meta Jira Server
+- **Jira Server vs Cloud**: Sava Meta dùng Jira Server — paths dùng `/rest/api/2/`, không phải `/rest/api/3/`
