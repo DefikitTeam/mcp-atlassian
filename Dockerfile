@@ -43,11 +43,15 @@ USER app
 COPY --from=uv --chown=app:app /app/.venv /app/.venv
 COPY --from=uv --chown=app:app /app/src /app/src
 
+# Remove PyPI-installed mcp_atlassian so Python uses /app/src instead
+RUN rm -rf /app/.venv/lib/python3.13/site-packages/mcp_atlassian
+
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Disable Python output buffering for proper stdio communication
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/src
 
 # For minimal OAuth setup without environment variables, use:
 # docker run -e ATLASSIAN_OAUTH_ENABLE=true -p 8000:8000 your-image
