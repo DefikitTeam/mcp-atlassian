@@ -3294,6 +3294,7 @@ _JIRA_REST_GET_ALLOWLIST = (
         "and returns the raw Jira response. Only GET requests are allowed, and "
         "the path must match the read-only allowlist."
     ),
+    tags={"jira", "read", "toolset:jira_projects"},
 )
 async def jira_rest_get(
     ctx: Context,
@@ -3362,7 +3363,9 @@ async def jira_rest_get(
             code = "jira_not_found"
         elif status == 429:
             retry_after = (
-                e.response.headers.get("Retry-After") if e.response is not None else None
+                e.response.headers.get("Retry-After")
+                if e.response is not None
+                else None
             )
             error_payload = json.dumps(
                 {"code": "jira_rate_limited", "retry_after": retry_after, "body": body}
@@ -3377,4 +3380,6 @@ async def jira_rest_get(
         raise ValueError(error_payload) from e
     except Exception as e:
         logger.error(f"jira_rest_get error for path={path}: {e}")
-        raise ValueError(json.dumps({"code": "jira_upstream_error", "message": str(e)})) from e
+        raise ValueError(
+            json.dumps({"code": "jira_upstream_error", "message": str(e)})
+        ) from e
