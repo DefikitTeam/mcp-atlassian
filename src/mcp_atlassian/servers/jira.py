@@ -3308,9 +3308,11 @@ async def rest_get(
         Field(
             description=(
                 "Jira REST path starting with /rest/. "
-                "Allowed prefixes: /rest/api/3/myself, /rest/api/3/project, "
-                "/rest/api/3/issue/{idOrKey}, /rest/api/3/search, "
-                "/rest/agile/1.0/board, /rest/agile/1.0/sprint/{id}"
+                "Allowed prefixes: /rest/api/2/myself, /rest/api/2/project, "
+                "/rest/api/2/issue/{idOrKey}, /rest/api/2/search, "
+                "/rest/api/2/user, /rest/agile/1.0/board, "
+                "/rest/agile/1.0/sprint/{id}. "
+                "Note: this is Jira Server (self-hosted) — use v2 API paths, not v3."
             )
         ),
     ],
