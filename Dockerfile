@@ -26,6 +26,10 @@ COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable
 
+# Remove PyPI-installed mcp_atlassian package so local src takes precedence
+RUN rm -rf /app/.venv/lib/python3.13/site-packages/mcp_atlassian \
+           /app/.venv/lib/python3.13/site-packages/mcp_atlassian-*.dist-info
+
 # Remove unnecessary files from the virtual environment before copying
 RUN find /app/.venv -name '__pycache__' -type d -exec rm -rf {} + && \
     find /app/.venv -name '*.pyc' -delete && \
@@ -42,9 +46,6 @@ USER app
 
 COPY --from=uv --chown=app:app /app/.venv /app/.venv
 COPY --from=uv --chown=app:app /app/src /app/src
-
-# Remove PyPI-installed mcp_atlassian so Python uses /app/src instead
-RUN rm -rf /app/.venv/lib/python3.13/site-packages/mcp_atlassian
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
