@@ -386,6 +386,57 @@ OK (blocked as expected)
 
 ---
 
+### 9. Upstream Error Propagation — 404
+
+Khi Jira trả về lỗi (404, 401, v.v.), MCP surface lỗi đó qua error envelope với `code` và `status` rõ ràng.
+
+**Request (board không tồn tại):**
+```
+path: /rest/agile/1.0/board/999999/sprint
+```
+
+**Response:**
+```
+Error calling tool 'rest_get': {"code": "jira_not_found", "status": 404, "body": {"errorMessages": [], "errors": {"rapidViewId": "The requested board cannot be viewed because it either does not exist or you do not have permission to view it."}}}
+```
+
+**Request (sprint không tồn tại):**
+```
+path: /rest/agile/1.0/sprint/999999/issue
+```
+
+**Response:**
+```
+Error calling tool 'rest_get': {"code": "jira_not_found", "status": 404, "body": {"errorMessages": ["Sprint doesn't exist."], "errors": {}}}
+```
+
+Format lỗi upstream: `{"code": "jira_not_found", "status": 404, "body": {...}}` — Point Poker đọc field `code` và `status` để xử lý đúng loại lỗi.
+
+<details>
+<summary>Raw test output</summary>
+
+```
+TEST: UPSTREAM 404: non-existent board
+PATH: /rest/agile/1.0/board/999999/sprint
+Expecting: body.status == 404
+HTTP status: 202 (202 = accepted by MCP)
+[UPSTREAM ERROR SURFACED] code=jira_not_found, status=404
+body: {"errorMessages": [], "errors": {"rapidViewId": "The requested board cannot be viewed because it either does not exist or you do not have permission to view it."}}
+OK (upstream error propagated correctly)
+
+TEST: UPSTREAM 404: non-existent sprint
+PATH: /rest/agile/1.0/sprint/999999/issue
+Expecting: body.status == 404
+HTTP status: 202 (202 = accepted by MCP)
+[UPSTREAM ERROR SURFACED] code=jira_not_found, status=404
+body: {"errorMessages": ["Sprint doesn't exist."], "errors": {}}
+OK (upstream error propagated correctly)
+```
+
+</details>
+
+---
+
 ## Test Results Summary
 
 | Test Case | Path | Status |
@@ -398,8 +449,10 @@ OK (blocked as expected)
 | Get sprint issues (sprint 220) | `/rest/agile/1.0/sprint/220/issue` | PASS |
 | Block admin endpoint | `/rest/api/2/configuration` | PASS (blocked) |
 | Block permissions endpoint | `/rest/api/2/permissions` | PASS (blocked) |
+| Upstream 404 — non-existent board | `/rest/agile/1.0/board/999999/sprint` | PASS |
+| Upstream 404 — non-existent sprint | `/rest/agile/1.0/sprint/999999/issue` | PASS |
 
-**8/8 test cases passed.**
+**10/10 test cases passed.**
 
 ---
 

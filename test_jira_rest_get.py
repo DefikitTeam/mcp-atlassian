@@ -92,6 +92,51 @@ def wait_for_response(event_queue: queue.Queue, call_id: int, timeout: float = 1
     return None
 
 
+def run_upstream_error_test(label: str, session_id: str, event_queue: queue.Queue,
+                            call_id: int, path: str, query: dict = None,
+                            expect_status: int = None):
+    """Test that Jira upstream errors (404, 401, etc.) surface correctly in body.status."""
+    print(f"\n{'='*60}")
+    print(f"TEST: {label}")
+    print(f"PATH: {path}" + (f" | QUERY: {query}" if query else ""))
+    print(f"Expecting: body.status == {expect_status}")
+
+    http_status, _ = call_tool(session_id, call_id, path, query)
+    print(f"HTTP status: {http_status} (202 = accepted by MCP)")
+
+    response = wait_for_response(event_queue, call_id)
+    if response is None:
+        print("TIMEOUT: No response received via SSE")
+        return
+
+    result = response.get("result", {})
+    content = result.get("content", [{}])
+    text = content[0].get("text", "") if content else ""
+
+    # MCP surfaces upstream errors as: "Error calling tool 'rest_get': {json}"
+    # Extract the JSON part regardless of prefix
+    json_text = text
+    if text.startswith("Error calling tool"):
+        idx = text.find("{")
+        if idx != -1:
+            json_text = text[idx:]
+
+    try:
+        data = json.loads(json_text)
+        actual_status = data.get("status")
+        if actual_status == expect_status:
+            print(f"[UPSTREAM ERROR SURFACED] code={data.get('code')}, status={actual_status}")
+            print(f"body: {json.dumps(data.get('body', {}))[:200]}")
+            print("OK (upstream error propagated correctly)")
+        else:
+            print(f"UNEXPECTED: got status={actual_status}, expected {expect_status}")
+            print(f"Full response: {text[:300]}")
+            print("FAIL")
+    except (json.JSONDecodeError, AttributeError):
+        print(f"Could not parse response: {text[:300]}")
+        print("FAIL")
+
+
 def run_test(label: str, session_id: str, event_queue: queue.Queue, call_id: int,
              path: str, query: dict = None, expect_error: bool = False):
     print(f"\n{'='*60}")
@@ -168,6 +213,16 @@ def main():
     call_id += 1
     run_test("BLOCKED: permissions endpoint", session_id, event_queue, call_id,
              "/rest/api/2/permissions", expect_error=True)
+    call_id += 1
+    # Upstream error propagation: Jira 404 should surface as body.status=404
+    run_upstream_error_test("UPSTREAM 404: non-existent board", session_id, event_queue, call_id,
+                            "/rest/agile/1.0/board/999999/sprint", expect_status=404)
+    call_id += 1
+    run_upstream_error_test("UPSTREAM 404: non-existent sprint", session_id, event_queue, call_id,
+                            "/rest/agile/1.0/sprint/999999/issue", expect_status=404)
+    # NOTE: 401 test not included — MCP credentials are fixed in server env and cannot be
+    # overridden via tool arguments by design. To test 401, temporarily use wrong credentials
+    # in the server's .env.atlassian and restart the container.
 
     print(f"\n{'='*60}")
     print("Done.")
