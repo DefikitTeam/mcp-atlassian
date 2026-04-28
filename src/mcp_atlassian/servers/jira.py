@@ -3273,3 +3273,113 @@ async def get_issues_development_info(
         logger.error(f"Error getting development info for issues: {str(e)}")
         error_result = {"success": False, "error": str(e)}
         return json.dumps(error_result, indent=2, ensure_ascii=False)
+
+
+# Read-only path prefixes allowed for jira_rest_get passthrough
+_JIRA_REST_GET_ALLOWLIST = (
+    "/rest/api/3/myself",
+    "/rest/api/3/project",
+    "/rest/api/3/issue/",
+    "/rest/api/3/search",
+    "/rest/agile/1.0/board",
+    "/rest/agile/1.0/sprint/",
+)
+
+
+@jira_mcp.tool(
+    name="jira_rest_get",
+    description=(
+        "Proxy a read-only Jira REST GET request through the MCP server. "
+        "The MCP server attaches its existing Jira service-account credentials "
+        "and returns the raw Jira response. Only GET requests are allowed, and "
+        "the path must match the read-only allowlist."
+    ),
+    tags={"jira", "read", "toolset:jira_projects"},
+)
+async def jira_rest_get(
+    ctx: Context,
+    path: Annotated[
+        str,
+        Field(
+            description=(
+                "Jira REST path starting with /rest/. "
+                "Allowed prefixes: /rest/api/3/myself, /rest/api/3/project, "
+                "/rest/api/3/issue/{idOrKey}, /rest/api/3/search, "
+                "/rest/agile/1.0/board, /rest/agile/1.0/sprint/{id}"
+            )
+        ),
+    ],
+    query: Annotated[
+        dict[str, Any] | None,
+        Field(
+            description=(
+                "Optional query-string parameters. "
+                "Values are stringified by the MCP server before forwarding."
+            )
+        ),
+    ] = None,
+) -> str:
+    """
+    Proxy a read-only Jira REST GET through the MCP.
+
+    Args:
+        ctx: The FastMCP context.
+        path: Jira REST path starting with /rest/ (must match the allowlist).
+        query: Optional query-string parameters dict.
+
+    Returns:
+        JSON string with {"status": <int>, "body": <raw Jira response>}
+        or MCP error envelope on failure.
+    """
+    # Enforce read-only allowlist
+    if not any(path.startswith(prefix) for prefix in _JIRA_REST_GET_ALLOWLIST):
+        error_payload = json.dumps({"code": "path_not_allowed", "path": path})
+        raise ValueError(error_payload)
+
+    jira = await get_jira_fetcher(ctx)
+
+    # atlassian-python-api expects path without leading slash
+    relative_path = path.lstrip("/")
+
+    # Stringify query param values as Jira expects
+    params: dict[str, str] = {}
+    if query:
+        params = {k: str(v) for k, v in query.items()}
+
+    try:
+        response = jira.jira.get(relative_path, params=params)
+        result = {"status": 200, "body": response}
+        return json.dumps(result, ensure_ascii=False)
+    except HTTPError as e:
+        status = e.response.status_code if e.response is not None else 0
+        try:
+            body = e.response.json() if e.response is not None else {}
+        except Exception:
+            body = {"message": str(e)}
+
+        if status == 401 or status == 403:
+            code = "jira_auth_failed"
+        elif status == 404:
+            code = "jira_not_found"
+        elif status == 429:
+            retry_after = (
+                e.response.headers.get("Retry-After")
+                if e.response is not None
+                else None
+            )
+            error_payload = json.dumps(
+                {"code": "jira_rate_limited", "retry_after": retry_after, "body": body}
+            )
+            raise ValueError(error_payload) from e
+        elif status >= 500:
+            code = "jira_upstream_error"
+        else:
+            code = "jira_http_error"
+
+        error_payload = json.dumps({"code": code, "status": status, "body": body})
+        raise ValueError(error_payload) from e
+    except Exception as e:
+        logger.error(f"jira_rest_get error for path={path}: {e}")
+        raise ValueError(
+            json.dumps({"code": "jira_upstream_error", "message": str(e)})
+        ) from e
