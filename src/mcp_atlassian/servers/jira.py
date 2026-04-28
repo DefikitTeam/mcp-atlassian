@@ -3281,6 +3281,7 @@ _JIRA_REST_GET_ALLOWLIST = (
     "/rest/api/3/project",
     "/rest/api/3/issue/",
     "/rest/api/3/search",
+    "/rest/api/3/user",
     "/rest/agile/1.0/board",
     "/rest/agile/1.0/sprint/",
 )
