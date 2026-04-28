@@ -24,8 +24,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Then, copy the rest of the project source code and install it
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev && \
-    uv pip install --no-deps -e .
+    uv sync --frozen --no-dev --no-editable
 
 # Remove unnecessary files from the virtual environment before copying
 RUN find /app/.venv -name '__pycache__' -type d -exec rm -rf {} + && \
@@ -42,6 +41,7 @@ WORKDIR /app
 USER app
 
 COPY --from=uv --chown=app:app /app/.venv /app/.venv
+COPY --from=uv --chown=app:app /app/src /app/src
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
