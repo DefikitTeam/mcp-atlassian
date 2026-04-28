@@ -4,9 +4,11 @@ on:
   push:
     tags:
       - 'v*.*.*' # Trigger on version tag pushes (e.g., v0.7.1)
+    branches:
+      - main     # Trigger on direct push to main (build + push image with 'main' tag)
   pull_request:
     branches:
-      - main     # Trigger on PRs targeting main branch
+      - main     # Trigger on PRs targeting main branch (build only, no push)
   workflow_dispatch: {} # Allow manual triggering from the Actions tab
 
 env:
