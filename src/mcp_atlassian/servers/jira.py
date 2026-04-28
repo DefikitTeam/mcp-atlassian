@@ -3293,7 +3293,6 @@ _JIRA_REST_GET_ALLOWLIST = (
 
 
 @jira_mcp.tool(
-    name="jira_rest_get",
     description=(
         "Proxy a read-only Jira REST GET request through the MCP server. "
         "The MCP server attaches its existing Jira service-account credentials "
@@ -3302,7 +3301,7 @@ _JIRA_REST_GET_ALLOWLIST = (
     ),
     tags={"jira", "read", "toolset:jira_projects"},
 )
-async def jira_rest_get(
+async def rest_get(
     ctx: Context,
     path: Annotated[
         str,
