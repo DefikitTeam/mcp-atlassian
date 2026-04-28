@@ -3277,6 +3277,11 @@ async def get_issues_development_info(
 
 # Read-only path prefixes allowed for jira_rest_get passthrough
 _JIRA_REST_GET_ALLOWLIST = (
+    "/rest/api/2/myself",
+    "/rest/api/2/project",
+    "/rest/api/2/issue/",
+    "/rest/api/2/search",
+    "/rest/api/2/user",
     "/rest/api/3/myself",
     "/rest/api/3/project",
     "/rest/api/3/issue/",
