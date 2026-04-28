@@ -458,7 +458,75 @@ OK (upstream error propagated correctly)
 
 ## How Point Poker Should Call This Tool
 
-Point Poker gọi tool `jira_rest_get` qua MCP client như bất kỳ tool nào khác:
+Point Poker gọi tool `jira_rest_get` qua MCP client. MCP server tự động đính kèm Jira credentials — Point Poker không cần biết token/password.
+
+---
+
+### Gọi: List Projects
+
+```json
+{
+  "name": "jira_rest_get",
+  "arguments": {
+    "path": "/rest/api/2/project",
+    "query": { "startAt": 0, "maxResults": 50 }
+  }
+}
+```
+
+Response: mảng projects. Paginate bằng `startAt` cho đến khi số items trả về < `maxResults`.
+
+---
+
+### Gọi: List Boards
+
+```json
+{
+  "name": "jira_rest_get",
+  "arguments": {
+    "path": "/rest/agile/1.0/board",
+    "query": { "startAt": 0, "maxResults": 50 }
+  }
+}
+```
+
+Response: `{ "total": 26, "isLast": false, "values": [...] }`. Paginate đến `isLast: true`.
+
+---
+
+### Gọi: List Sprints (theo board)
+
+```json
+{
+  "name": "jira_rest_get",
+  "arguments": {
+    "path": "/rest/agile/1.0/board/91/sprint",
+    "query": { "startAt": 0, "maxResults": 50 }
+  }
+}
+```
+
+Thay `91` bằng board id thực tế. Lọc `state == "active"` để lấy sprint đang chạy.
+
+---
+
+### Gọi: Get Sprint Issues
+
+```json
+{
+  "name": "jira_rest_get",
+  "arguments": {
+    "path": "/rest/agile/1.0/sprint/220/issue",
+    "query": { "startAt": 0, "maxResults": 100 }
+  }
+}
+```
+
+Thay `220` bằng sprint id thực tế. Story Points đọc từ field `customfield_10031`.
+
+---
+
+### Gọi: Lookup User by Email
 
 ```json
 {
@@ -470,7 +538,37 @@ Point Poker gọi tool `jira_rest_get` qua MCP client như bất kỳ tool nào 
 }
 ```
 
-MCP server tự động đính kèm Jira credentials — Point Poker không cần biết token/password.
+Response trả về mảng, đọc field `key` (ví dụ `JIRAUSER11232`) để lấy accountId.
+
+---
+
+### Gọi: Service Account Info
+
+```json
+{
+  "name": "jira_rest_get",
+  "arguments": {
+    "path": "/rest/api/2/myself"
+  }
+}
+```
+
+Dùng để verify MCP credentials còn hoạt động.
+
+---
+
+### Org Sync — Thứ tự gọi chuẩn
+
+Point Poker sync toàn bộ hierarchy theo thứ tự:
+
+```
+1. List projects  →  /rest/api/2/project
+2. List boards    →  /rest/agile/1.0/board
+3. For each board →  /rest/agile/1.0/board/{id}/sprint
+4. (on-demand)    →  /rest/agile/1.0/sprint/{id}/issue
+```
+
+Tất cả đều paginate bằng `startAt` + `maxResults` cho đến khi hết data.
 
 ---
 
