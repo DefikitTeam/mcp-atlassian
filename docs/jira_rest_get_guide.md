@@ -37,12 +37,14 @@ Parameters:
   sprint_id   (integer, required) — Sprint id cần update
   name        (string, optional)  — Tên sprint mới
   goal        (string, optional)  — Sprint goal mới
-  state       (string, optional)  — Trạng thái mới: "future" | "active" | "closed"
-  start_date  (string, optional)  — Ngày bắt đầu ISO-8601, ví dụ: "2026-05-01T09:00:00.000+07:00"
-  end_date    (string, optional)  — Ngày kết thúc ISO-8601, ví dụ: "2026-05-14T18:00:00.000+07:00"
+  state       (string, required*) — Trạng thái: "future" | "active" | "closed"
+  start_date  (string, required*) — Ngày bắt đầu ISO-8601, ví dụ: "2026-05-01T09:00:00.000+07:00"
+  end_date    (string, required*) — Ngày kết thúc ISO-8601, ví dụ: "2026-05-14T18:00:00.000+07:00"
 ```
 
-Ít nhất một field optional phải được cung cấp. Các field không truyền sẽ không thay đổi.
+Ít nhất một field phải được cung cấp. `name` và `goal` là truly optional.
+
+> **\* Jira Server PUT quirk**: `state`, `start_date`, `end_date` là required trên thực tế — Jira Server trả 400 nếu thiếu bất kỳ field nào trong số đó, kể cả khi không muốn thay đổi. Luôn lấy giá trị hiện tại bằng `GET /rest/agile/1.0/sprint/{id}` rồi truyền lại đầy đủ.
 
 ---
 
@@ -239,7 +241,7 @@ OK
 
 ---
 
-### 6. List Sprints (by Board)
+### 5. List Sprints (by Board)
 
 **Request:**
 ```
@@ -292,7 +294,7 @@ OK
 
 ---
 
-### 7. Get Sprint Issues
+### 6. Get Sprint Issues
 
 **Request:**
 ```
@@ -361,7 +363,7 @@ OK
 
 ---
 
-### 8. Blocked Path — Security Test
+### 7. Blocked Path — Security Test
 
 **Request:**
 ```
@@ -406,7 +408,7 @@ OK (blocked as expected)
 
 ---
 
-### 9. Upstream Error Propagation — 404
+### 8. Upstream Error Propagation — 404
 
 Khi Jira trả về lỗi (404, 401, v.v.), MCP surface lỗi đó qua error envelope với `code` và `status` rõ ràng.
 
@@ -598,10 +600,15 @@ Tool này dùng để **ghi kết quả Point Poker vào sprint** — ví dụ c
   "name": "jira_update_sprint",
   "arguments": {
     "sprint_id": 220,
-    "goal": "Complete DC onboarding flow + DDM roles & permissions (total 58 SP)"
+    "goal": "Complete DC onboarding flow + DDM roles & permissions (total 58 SP)",
+    "state": "active",
+    "start_date": "2026-04-22T16:18:00.000+07:00",
+    "end_date": "2026-05-06T16:18:00.000+07:00"
   }
 }
 ```
+
+> Lấy `state`, `start_date`, `end_date` hiện tại từ `GET /rest/agile/1.0/sprint/{id}` trước khi gọi.
 
 **Update tên sprint và ngày kết thúc:**
 ```json
