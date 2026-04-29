@@ -476,13 +476,14 @@ OK (upstream error propagated correctly)
 
 | Test Case | Tool | Status |
 |-----------|------|--------|
+| Get sprint detail (sprint 220) | `jira_rest_get` | PASS |
 | Happy path — same name (no actual change) | `jira_update_sprint` | PASS |
 | Non-existent sprint id → 404 | `jira_update_sprint` | PASS |
 | No fields provided → validation error | `jira_update_sprint` | PASS |
 
-**3/3 test cases passed** (`jira_update_sprint`).
+**4/4 test cases passed** (`jira_update_sprint` + sprint detail).
 
-**13/13 total.**
+**14/14 total.**
 
 ---
 
@@ -609,6 +610,8 @@ Tool này dùng để **ghi kết quả Point Poker vào sprint** — ví dụ c
   "arguments": {
     "sprint_id": 220,
     "name": "LLA Sprint 19",
+    "state": "active",
+    "start_date": "2026-04-22T16:18:00.000+07:00",
     "end_date": "2026-05-06T18:00:00.000+07:00"
   }
 }
@@ -616,8 +619,10 @@ Tool này dùng để **ghi kết quả Point Poker vào sprint** — ví dụ c
 
 **Response (success):**
 ```json
-{ "status": 200, "body": null }
+{ "status": 200, "body": { "id": 220, "state": "active", "name": "LLA Sprint 19", ... } }
 ```
+
+> **Jira Server PUT quirk**: Jira Server (self-hosted) bắt buộc phải có `state`, `start_date`, và `end_date` trong mỗi PUT request, kể cả khi không muốn thay đổi các field đó. Thiếu bất kỳ field nào sẽ nhận 400 `"You must specify a start date"` hoặc `"Provide the sprint state"`. Lấy giá trị hiện tại bằng `GET /rest/agile/1.0/sprint/{id}` trước khi PUT.
 
 > **State transitions**: Jira chỉ cho phép `future → active → closed`. Không thể reopen sprint đã closed.
 
@@ -786,3 +791,4 @@ Point Poker phải đọc `customfield_10031`, không phải `customfield_10016`
 - **Jira Server vs Cloud**: Sava Meta dùng Jira Server — paths dùng `/rest/api/2/`, không phải `/rest/api/3/`
 - **Write operation**: dùng `jira_update_sprint` (không phải `jira_rest_get`) để cập nhật sprint — ít nhất 1 field phải được truyền
 - **State transition rule**: sprint chỉ chuyển được `future → active → closed`, không thể reopen
+- **Jira Server PUT quirk**: mỗi lần gọi `jira_update_sprint`, phải luôn truyền `state`, `start_date`, `end_date` — kể cả khi không muốn thay đổi. Lấy giá trị hiện tại từ `GET /rest/agile/1.0/sprint/{id}` trước
