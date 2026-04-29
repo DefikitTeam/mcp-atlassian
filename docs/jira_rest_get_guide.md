@@ -459,6 +459,99 @@ OK (upstream error propagated correctly)
 
 ---
 
+### 9. Get Sprint Detail
+
+**Request:**
+```
+path: /rest/agile/1.0/sprint/220
+```
+
+**Response (status 200):**
+```json
+{
+  "id": 220,
+  "state": "active",
+  "name": "LLA Sprint 19",
+  "startDate": "2026-04-22T16:18:00.000+07:00",
+  "endDate": "2026-05-06T16:18:00.000+07:00",
+  "activatedDate": "2026-04-22T16:18:43.753+07:00",
+  "originBoardId": 91,
+  "goal": ""
+}
+```
+
+Dùng để lấy `state`, `startDate`, `endDate` hiện tại trước khi gọi `jira_update_sprint`.
+
+<details>
+<summary>Raw test output</summary>
+
+```
+TEST: Get sprint detail (sprint 220 - LLA Sprint 19)
+PATH: /rest/agile/1.0/sprint/220
+HTTP status: 202 (202 = accepted by MCP)
+Result:
+{"status": 200, "body": {"id": 220, "self": "https://jira.savameta.com/rest/agile/1.0/sprint/220", "state": "active", "name": "LLA Sprint 19", "startDate": "2026-04-22T16:18:00.000+07:00", "endDate": "2026-05-06T16:18:00.000+07:00", "activatedDate": "2026-04-22T16:18:43.753+07:00", "originBoardId": 91, "synced": false, "autoStartStop": false}}
+OK
+```
+
+</details>
+
+---
+
+### 10. jira_update_sprint — Happy Path
+
+**Request:**
+```json
+{
+  "name": "jira_update_sprint",
+  "arguments": {
+    "sprint_id": 220,
+    "name": "LLA Sprint 19",
+    "state": "active",
+    "start_date": "2026-04-22T16:18:00.000+07:00",
+    "end_date": "2026-05-06T16:18:00.000+07:00"
+  }
+}
+```
+
+**Response (status 200):**
+```json
+{
+  "id": 220,
+  "state": "active",
+  "name": "LLA Sprint 19",
+  "startDate": "2026-04-22T16:18:00.000+07:00",
+  "endDate": "2026-05-06T16:18:00.000+07:00"
+}
+```
+
+<details>
+<summary>Raw test output</summary>
+
+```
+TEST: UPDATE SPRINT: happy path (safe — same name, no actual change)
+ARGS: {'sprint_id': 220, 'name': 'LLA Sprint 19', 'state': 'active', 'start_date': '2026-04-22T16:18:00.000+07:00', 'end_date': '2026-05-06T16:18:00.000+07:00'}
+HTTP status: 202 (202 = accepted by MCP)
+status=200 body={"id": 220, "self": "https://jira.savameta.com/rest/agile/1.0/sprint/220", "state": "active", "name": "LLA Sprint 19", "startDate": "2026-04-22T16:18:00.000+07:00", "endDate": "2026-05-06T16:18:00.000+07:00", ...}
+OK
+
+TEST: UPDATE SPRINT: non-existent sprint id → expect 404
+ARGS: {'sprint_id': 999999, 'name': 'ghost sprint'}
+HTTP status: 202 (202 = accepted by MCP)
+[EXPECTED ERROR] code=jira_not_found
+OK (error surfaced correctly)
+
+TEST: UPDATE SPRINT: no fields provided → expect no_fields error
+ARGS: {'sprint_id': 220}
+HTTP status: 202 (202 = accepted by MCP)
+[EXPECTED ERROR] code=no_fields
+OK (error surfaced correctly)
+```
+
+</details>
+
+---
+
 ## Test Results Summary
 
 | Test Case | Path | Status |
