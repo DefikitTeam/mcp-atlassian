@@ -792,3 +792,4 @@ Point Poker phải đọc `customfield_10031`, không phải `customfield_10016`
 - **Write operation**: dùng `jira_update_sprint` (không phải `jira_rest_get`) để cập nhật sprint — ít nhất 1 field phải được truyền
 - **State transition rule**: sprint chỉ chuyển được `future → active → closed`, không thể reopen
 - **Jira Server PUT quirk**: mỗi lần gọi `jira_update_sprint`, phải luôn truyền `state`, `start_date`, `end_date` — kể cả khi không muốn thay đổi. Lấy giá trị hiện tại từ `GET /rest/agile/1.0/sprint/{id}` trước
+- **ENABLED_TOOLS**: MCP server dùng whitelist `ENABLED_TOOLS` trong `.env` — `jira_update_sprint` phải được thêm vào list này để tool hoạt động. Ví dụ: `ENABLED_TOOLS=...,jira_rest_get,jira_update_sprint`
