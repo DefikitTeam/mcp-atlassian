@@ -173,6 +173,84 @@ def run_test(label: str, session_id: str, event_queue: queue.Queue, call_id: int
             print("OK")
 
 
+def call_update_sprint(session_id: str, call_id: int, **kwargs) -> tuple[int, str]:
+    """Call jira_update_sprint tool with given arguments."""
+    payload = {
+        "jsonrpc": "2.0",
+        "id": call_id,
+        "method": "tools/call",
+        "params": {
+            "name": "jira_update_sprint",
+            "arguments": kwargs,
+        },
+    }
+    r = requests.post(
+        f"{BASE_URL}/messages/?session_id={session_id}",
+        json=payload,
+        timeout=10,
+    )
+    return r.status_code, r.text
+
+
+def run_update_sprint_test(label: str, session_id: str, event_queue: queue.Queue,
+                           call_id: int, expect_error: bool = False,
+                           expect_error_code: str = None, **kwargs):
+    """Test jira_update_sprint tool."""
+    print(f"\n{'='*60}")
+    print(f"TEST: {label}")
+    print(f"ARGS: {kwargs}")
+
+    http_status, _ = call_update_sprint(session_id, call_id, **kwargs)
+    print(f"HTTP status: {http_status} (202 = accepted by MCP)")
+
+    response = wait_for_response(event_queue, call_id)
+    if response is None:
+        print("TIMEOUT: No response received via SSE")
+        return
+
+    result = response.get("result", {})
+    content = result.get("content", [{}])
+    text = content[0].get("text", "") if content else ""
+
+    is_error = "error" in response or text.startswith("Error calling tool")
+
+    if expect_error:
+        if is_error:
+            # Extract JSON from error text
+            json_text = text
+            if text.startswith("Error calling tool"):
+                idx = text.find("{")
+                if idx != -1:
+                    json_text = text[idx:]
+            try:
+                data = json.loads(json_text)
+                actual_code = data.get("code")
+                if expect_error_code and actual_code != expect_error_code:
+                    print(f"UNEXPECTED ERROR CODE: got={actual_code}, expected={expect_error_code}")
+                    print("FAIL")
+                else:
+                    print(f"[EXPECTED ERROR] code={actual_code}")
+                    print("OK (error surfaced correctly)")
+            except (json.JSONDecodeError, AttributeError):
+                print(f"[EXPECTED ERROR] {text[:200]}")
+                print("OK (error surfaced correctly)")
+        else:
+            print(f"UNEXPECTED SUCCESS (should have errored): {text[:200]}")
+            print("FAIL")
+    else:
+        if is_error:
+            print(f"UNEXPECTED ERROR: {text[:200]}")
+            print("FAIL")
+        else:
+            try:
+                data = json.loads(text)
+                print(f"status={data.get('status')} body={json.dumps(data.get('body', {}))[:200]}")
+                print("OK")
+            except json.JSONDecodeError:
+                print(f"Result: {text[:200]}")
+                print("OK")
+
+
 def main():
     global BASE_URL
     BASE_URL = sys.argv[1] if len(sys.argv) > 1 else BASE_URL
@@ -220,9 +298,34 @@ def main():
     call_id += 1
     run_upstream_error_test("UPSTREAM 404: non-existent sprint", session_id, event_queue, call_id,
                             "/rest/agile/1.0/sprint/999999/issue", expect_status=404)
+    call_id += 1
     # NOTE: 401 test not included — MCP credentials are fixed in server env and cannot be
     # overridden via tool arguments by design. To test 401, temporarily use wrong credentials
     # in the server's .env.atlassian and restart the container.
+
+    # --- jira_update_sprint tests ---
+    # Safe: update sprint 220 with same name (no actual change)
+    run_update_sprint_test(
+        "UPDATE SPRINT: happy path (safe — same name, no actual change)",
+        session_id, event_queue, call_id,
+        sprint_id=220, name="LLA Sprint 19",
+    )
+    call_id += 1
+    # Error: non-existent sprint id → expect 404
+    run_update_sprint_test(
+        "UPDATE SPRINT: non-existent sprint id → expect 404",
+        session_id, event_queue, call_id,
+        expect_error=True, expect_error_code="jira_not_found",
+        sprint_id=999999, name="ghost sprint",
+    )
+    call_id += 1
+    # Error: no fields provided → expect no_fields validation error
+    run_update_sprint_test(
+        "UPDATE SPRINT: no fields provided → expect no_fields error",
+        session_id, event_queue, call_id,
+        expect_error=True, expect_error_code="no_fields",
+        sprint_id=220,
+    )
 
     print(f"\n{'='*60}")
     print("Done.")

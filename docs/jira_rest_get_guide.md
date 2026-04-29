@@ -10,11 +10,15 @@
 `jira_rest_get` là một MCP tool được thêm vào custom fork của `mcp-atlassian`.  
 Tool này cho phép Point Poker gọi trực tiếp Jira REST API (read-only GET) thông qua MCP server — sử dụng lại credentials của service account đã cấu hình, không cần Point Poker tự quản lý Jira token.
 
-**Chỉ cho phép GET. Không có quyền ghi/sửa/xóa.**
+**`jira_rest_get`**: Chỉ cho phép GET. Không có quyền ghi/sửa/xóa.
+
+`jira_update_sprint` là tool riêng biệt cho phép cập nhật thông tin sprint (write operation — chỉ dùng cho Point Poker khi cần ghi kết quả SP về Jira).
 
 ---
 
-## Tool Signature
+## Tool Signatures
+
+### jira_rest_get
 
 ```
 Tool name: jira_rest_get
@@ -23,6 +27,22 @@ Parameters:
   path   (string, required) — Jira REST path bắt đầu bằng /rest/
   query  (object, optional) — Query string parameters dạng key-value
 ```
+
+### jira_update_sprint
+
+```
+Tool name: jira_update_sprint
+
+Parameters:
+  sprint_id   (integer, required) — Sprint id cần update
+  name        (string, optional)  — Tên sprint mới
+  goal        (string, optional)  — Sprint goal mới
+  state       (string, optional)  — Trạng thái mới: "future" | "active" | "closed"
+  start_date  (string, optional)  — Ngày bắt đầu ISO-8601, ví dụ: "2026-05-01T09:00:00.000+07:00"
+  end_date    (string, optional)  — Ngày kết thúc ISO-8601, ví dụ: "2026-05-14T18:00:00.000+07:00"
+```
+
+Ít nhất một field optional phải được cung cấp. Các field không truyền sẽ không thay đổi.
 
 ---
 
@@ -452,7 +472,17 @@ OK (upstream error propagated correctly)
 | Upstream 404 — non-existent board | `/rest/agile/1.0/board/999999/sprint` | PASS |
 | Upstream 404 — non-existent sprint | `/rest/agile/1.0/sprint/999999/issue` | PASS |
 
-**10/10 test cases passed.**
+**10/10 test cases passed** (`jira_rest_get`).
+
+| Test Case | Tool | Status |
+|-----------|------|--------|
+| Happy path — same name (no actual change) | `jira_update_sprint` | PASS |
+| Non-existent sprint id → 404 | `jira_update_sprint` | PASS |
+| No fields provided → validation error | `jira_update_sprint` | PASS |
+
+**3/3 test cases passed** (`jira_update_sprint`).
+
+**13/13 total.**
 
 ---
 
@@ -554,6 +584,57 @@ Response trả về mảng, đọc field `key` (ví dụ `JIRAUSER11232`) để 
 ```
 
 Dùng để verify MCP credentials còn hoạt động.
+
+---
+
+### Gọi: Update Sprint (jira_update_sprint)
+
+Tool này dùng để **ghi kết quả Point Poker vào sprint** — ví dụ cập nhật sprint goal, hoặc rename sau khi planning.
+
+**Update sprint goal sau khi team vote xong:**
+```json
+{
+  "name": "jira_update_sprint",
+  "arguments": {
+    "sprint_id": 220,
+    "goal": "Complete DC onboarding flow + DDM roles & permissions (total 58 SP)"
+  }
+}
+```
+
+**Update tên sprint và ngày kết thúc:**
+```json
+{
+  "name": "jira_update_sprint",
+  "arguments": {
+    "sprint_id": 220,
+    "name": "LLA Sprint 19",
+    "end_date": "2026-05-06T18:00:00.000+07:00"
+  }
+}
+```
+
+**Response (success):**
+```json
+{ "status": 200, "body": null }
+```
+
+> **State transitions**: Jira chỉ cho phép `future → active → closed`. Không thể reopen sprint đã closed.
+
+**Error codes:**
+
+| Code | HTTP | Ý nghĩa |
+|------|------|---------|
+| `no_fields` | — | Không truyền field nào để update (validation) |
+| `jira_not_found` | 404 | Sprint id không tồn tại |
+| `jira_auth_failed` | 401/403 | MCP credentials không có quyền |
+| `jira_rate_limited` | 429 | Jira rate limit — check `retry_after` |
+| `jira_upstream_error` | 5xx | Jira server lỗi |
+
+**Error format:**
+```json
+{ "code": "jira_not_found", "status": 404, "body": { "errorMessages": ["Sprint doesn't exist."], "errors": {} } }
+```
 
 ---
 
@@ -703,3 +784,5 @@ Point Poker phải đọc `customfield_10031`, không phải `customfield_10016`
 - Để lấy sprint đang active: gọi `/rest/agile/1.0/board/{boardId}/sprint`, lọc `state == "active"`
 - **Story Points: dùng `customfield_10031`** — field `customfield_10016` luôn null trên Sava Meta Jira Server
 - **Jira Server vs Cloud**: Sava Meta dùng Jira Server — paths dùng `/rest/api/2/`, không phải `/rest/api/3/`
+- **Write operation**: dùng `jira_update_sprint` (không phải `jira_rest_get`) để cập nhật sprint — ít nhất 1 field phải được truyền
+- **State transition rule**: sprint chỉ chuyển được `future → active → closed`, không thể reopen
