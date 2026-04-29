@@ -303,12 +303,19 @@ def main():
     # overridden via tool arguments by design. To test 401, temporarily use wrong credentials
     # in the server's .env.atlassian and restart the container.
 
+    # Get sprint 220 detail to inspect startDate/endDate
+    run_test("Get sprint detail (sprint 220 - LLA Sprint 19)", session_id, event_queue, call_id,
+             "/rest/agile/1.0/sprint/220")
+    call_id += 1
+
     # --- jira_update_sprint tests ---
     # Safe: update sprint 220 with same name (no actual change)
     run_update_sprint_test(
         "UPDATE SPRINT: happy path (safe — same name, no actual change)",
         session_id, event_queue, call_id,
-        sprint_id=220, name="LLA Sprint 19",
+        sprint_id=220, name="LLA Sprint 19", state="active",
+        start_date="2026-04-22T16:18:00.000+07:00",
+        end_date="2026-05-06T16:18:00.000+07:00",
     )
     call_id += 1
     # Error: non-existent sprint id → expect 404
