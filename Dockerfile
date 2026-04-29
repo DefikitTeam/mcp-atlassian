@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --no-index /tmp/dist/*.whl
 
 # Verify
-RUN grep -c "jira_rest_get" /app/.venv/lib/python3.13/site-packages/mcp_atlassian/servers/jira.py
+RUN grep -c "jira_rest_get\|jira_update_sprint" /app/.venv/lib/python3.13/site-packages/mcp_atlassian/servers/jira.py
 
 # Remove unnecessary files from the virtual environment before copying
 RUN find /app/.venv -name '__pycache__' -type d -exec rm -rf {} + && \

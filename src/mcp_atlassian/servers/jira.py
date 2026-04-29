@@ -3390,3 +3390,117 @@ async def rest_get(
         raise ValueError(
             json.dumps({"code": "jira_upstream_error", "message": str(e)})
         ) from e
+
+
+@jira_mcp.tool(
+    description=(
+        "Update a Jira sprint by id. Sends a PUT request to "
+        "PUT /rest/agile/1.0/sprint/{sprint_id} with the provided fields. "
+        "Only the fields you pass will be included in the request body — "
+        "omitted fields are left unchanged. "
+        "Updatable fields: name, goal, state, startDate, endDate. "
+        "Note: state transitions follow Jira rules (future→active→closed only)."
+    ),
+    tags={"jira", "write", "toolset:jira_projects"},
+)
+async def update_sprint(
+    ctx: Context,
+    sprint_id: Annotated[
+        int,
+        Field(description="The Jira sprint id to update."),
+    ],
+    name: Annotated[
+        str | None,
+        Field(description="New sprint name."),
+    ] = None,
+    goal: Annotated[
+        str | None,
+        Field(description="New sprint goal."),
+    ] = None,
+    state: Annotated[
+        str | None,
+        Field(description="New sprint state. Allowed values: future, active, closed."),
+    ] = None,
+    start_date: Annotated[
+        str | None,
+        Field(description="New start date in ISO-8601 format, e.g. 2026-05-01T09:00:00.000+07:00."),
+    ] = None,
+    end_date: Annotated[
+        str | None,
+        Field(description="New end date in ISO-8601 format, e.g. 2026-05-14T18:00:00.000+07:00."),
+    ] = None,
+) -> str:
+    """
+    Update a Jira sprint via PUT /rest/agile/1.0/sprint/{sprint_id}.
+
+    Args:
+        ctx: The FastMCP context.
+        sprint_id: The Jira sprint id.
+        name: Optional new sprint name.
+        goal: Optional new sprint goal.
+        state: Optional new sprint state (future/active/closed).
+        start_date: Optional new start date (ISO-8601).
+        end_date: Optional new end date (ISO-8601).
+
+    Returns:
+        JSON string with {"status": 200, "body": <raw Jira response>}
+        or MCP error envelope on failure.
+    """
+    jira = await get_jira_fetcher(ctx)
+
+    body: dict[str, Any] = {}
+    if name is not None:
+        body["name"] = name
+    if goal is not None:
+        body["goal"] = goal
+    if state is not None:
+        body["state"] = state
+    if start_date is not None:
+        body["startDate"] = start_date
+    if end_date is not None:
+        body["endDate"] = end_date
+
+    if not body:
+        raise ValueError(
+            json.dumps({"code": "no_fields", "message": "At least one field must be provided to update."})
+        )
+
+    path = f"rest/agile/1.0/sprint/{sprint_id}"
+
+    try:
+        response = jira.jira.put(path, data=body)
+        result = {"status": 200, "body": response}
+        return json.dumps(result, ensure_ascii=False)
+    except HTTPError as e:
+        status = e.response.status_code if e.response is not None else 0
+        try:
+            resp_body = e.response.json() if e.response is not None else {}
+        except Exception:
+            resp_body = {"message": str(e)}
+
+        if status == 401 or status == 403:
+            code = "jira_auth_failed"
+        elif status == 404:
+            code = "jira_not_found"
+        elif status == 429:
+            retry_after = (
+                e.response.headers.get("Retry-After")
+                if e.response is not None
+                else None
+            )
+            error_payload = json.dumps(
+                {"code": "jira_rate_limited", "retry_after": retry_after, "body": resp_body}
+            )
+            raise ValueError(error_payload) from e
+        elif status >= 500:
+            code = "jira_upstream_error"
+        else:
+            code = "jira_http_error"
+
+        error_payload = json.dumps({"code": code, "status": status, "body": resp_body})
+        raise ValueError(error_payload) from e
+    except Exception as e:
+        logger.error(f"jira_update_sprint error for sprint_id={sprint_id}: {e}")
+        raise ValueError(
+            json.dumps({"code": "jira_upstream_error", "message": str(e)})
+        ) from e
