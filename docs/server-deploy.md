@@ -43,5 +43,18 @@ docker compose down && docker compose up -d --force-recreate
 ```bash
 docker logs mcp-atlassian -f
 ```
+### 6. Bảo AI nó cập nhật cái file test_jira_rest_get.py và file jira_rest_get_guide.md để test ở trên server và gửi cho anh PO, 
 
+### 7. sau đó chạy câu lệnh 
+```bash
+cd ~/jira-mcp
+echo > test_jira_rest_get.py
+vi test_jira_rest_get.py
+```
+sau đó copy cái file test_jira_rest_get.py từ ở git vào 
+sau đó chạy câu lệnh
+```bash
+python3 test_jira_rest_get.py http://localhost:9200 
+```
+trên server để test
 Container listen trên port `9200` (SSE transport).
